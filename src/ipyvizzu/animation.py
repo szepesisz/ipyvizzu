@@ -9,6 +9,7 @@ import jsonschema  # type: ignore
 
 import pandas as pd  # type: ignore
 from pandas.api.types import is_numeric_dtype  # type: ignore
+import numpy as np
 
 from ipyvizzu.json import RawJavaScript, RawJavaScriptEncoder
 from ipyvizzu.schema import DATA_SCHEMA
@@ -254,6 +255,50 @@ class Data(dict, AbstractAnimation):
         """
 
         self._add_named_value("measures", name, values, **kwargs)
+
+    def add_numpy_array(
+        self,
+        numpy_array: np.ndarray,
+        headers: Union[list, np.ndarray],
+        default_measure_value: Optional[Any] = 0,
+        default_dimension_value: Optional[Any] = "",
+    ) -> None:
+        print(all([not isinstance(param, type(None)) for param in (numpy_array, headers)]))
+        print(numpy_array)
+        if all([not isinstance(param, type(None)) for param in (numpy_array, headers)]):
+            if not isinstance(numpy_array, np.ndarray):
+                raise TypeError(
+                    "numpy_array must be instance of numpy.ndarray"
+                )
+            if isinstance(headers, type(None)):
+                headers = range(1, numpy_array.shape[1] + 1)
+
+            for row, name in zip(numpy_array.T, headers):
+                try:
+                    row.astype(float)
+                except:
+                    array_is_numeric = False
+                else:
+                    array_is_numeric = True
+                if array_is_numeric:
+                    infer_type = InferType.MEASURE
+                    row[pd.isna(row)] = default_measure_value
+                    values = (list(
+                        row
+                        .astype(float)
+                    ))
+                else:
+                    infer_type = InferType.DIMENSION
+                    row[pd.isna(row)] = default_dimension_value
+                    values = (list(
+                        row
+                        .astype(str)
+                    ))
+                self.add_series(
+                    name,
+                    values,
+                    type=infer_type.value,
+                )
 
     def add_data_frame(
         self,
